@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>SponsorIQ Multi-Target Correction Tool</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet"/>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#3b82f6",
+                        "background-light": "hsl(220, 30%, 98%)",
+                        "background-dark": "hsl(220, 30%, 11%)",
+                        "panel-dark": "hsl(220, 30%, 13%)",
+                        "card-dark": "hsl(220, 30%, 16%)",
+                    },
+                    fontFamily: {
+                        display: ["Roboto", "sans-serif"],
+                        body: ["Roboto", "sans-serif"],
+                    },
+                    borderRadius: {
+                        DEFAULT: "0.5rem",
+                    },
+                },
+            },
+        };
+    </script>
+    <style>
+        body { font-family: 'Roboto', sans-serif; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
+        .image-overlay-red { background: rgba(239, 68, 68, 0.4); border: 2px solid #ef4444; }
+        .image-overlay-blue { background: rgba(59, 130, 246, 0.4); border: 2px solid #3b82f6; }
+        .image-overlay-green { background: rgba(34, 197, 94, 0.4); border: 2px solid #22c55e; }
+        .image-overlay-yellow { background: rgba(234, 179, 8, 0.4); border: 2px solid #eab308; }
+        .image-overlay-purple { background: rgba(168, 85, 247, 0.4); border: 2px solid #a855f7; }
+        .image-overlay-orange { background: rgba(249, 115, 22, 0.4); border: 2px solid #f97316; }
+        .image-item { cursor: pointer; transition: transform 0.2s; }
+        .image-item:hover { transform: scale(1.02); }
+        .range-start { border: 3px solid #10b981 !important; box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.3); }
+        .range-end { border: 3px solid #ef4444 !important; box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.3); }
+        .range-between { border: 2px solid #f59e0b !important; background: rgba(245, 158, 11, 0.1); }
+        .sidebar-hidden { transform: translateX(-100%); }
+        .sidebar-toggle { 
+            position: absolute; 
+            top: 50%; 
+            right: -12px; 
+            transform: translateY(-50%);
+            z-index: 60; 
+            width: 24px;
+            height: 48px;
+            border-radius: 0 8px 8px 0;
+            border: none;
+            box-shadow: 2px 0 8px rgba(0,0,0,0.1);
+        }
+        .sidebar-toggle-hidden {
+            position: fixed;
+            top: 50%;
+            left: 0;
+            transform: translateY(-50%);
+            z-index: 60;
+            width: 24px;
+            height: 48px;
+            border-radius: 0 8px 8px 0;
+            border: none;
+            box-shadow: 2px 0 8px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 h-screen flex flex-col overflow-hidden">
+    <nav class="h-16 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-6 bg-background-light dark:bg-background-dark z-10">
+        <div class="flex items-center gap-2">
+            <span class="text-xl font-bold tracking-tight text-slate-800 dark:text-white">SponsorIQ</span>
+            <span class="ml-4 text-xs font-medium px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 uppercase tracking-widest">Worker Node</span>
+        </div>
+        <div class="flex items-center gap-6">
+            <button class="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                <span class="material-icons-outlined text-slate-500">light_mode</span>
+            </button>
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center text-white font-medium text-sm">A</div>
+                <span class="material-icons-outlined text-slate-400 text-sm">expand_more</span>
+            </div>
+        </div>
+    </nav>
+
+    <div class="flex flex-1 overflow-hidden relative">
+        <!-- Toggle Button - Always Visible -->
+        <button id="sidebarToggle" class="fixed top-1/2 left-64 transform -translate-y-1/2 -translate-x-1/2 z-50 w-8 h-8 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 flex items-center justify-center transition-all rounded-full shadow-lg border border-slate-200 dark:border-slate-700">
+            <span class="material-icons-outlined text-sm">chevron_left</span>
+        </button>
+        
+        <aside id="sidebar" class="w-64 bg-slate-50 dark:bg-panel-dark border-r border-slate-200 dark:border-slate-800 flex flex-col p-4 transition-transform duration-300 ease-in-out">
+            
+            <!-- Categories Dropdown -->
+            <div class="mb-4">
+                <button id="categoriesToggle" class="w-full flex items-center justify-between p-3 bg-slate-100 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all">
+                    <div class="flex items-center gap-2">
+                        <span class="material-icons-outlined text-sm text-slate-600 dark:text-slate-400">category</span>
+                        <span class="text-sm font-medium text-slate-700 dark:text-slate-300">Categories</span>
+                    </div>
+                    <span id="categoriesChevron" class="material-icons-outlined text-sm text-slate-500 transition-transform">expand_more</span>
+                </button>
+                
+                <div id="categoriesDropdown" class="mt-2 space-y-2 hidden">
+                    <div class="category-card p-3 bg-white dark:bg-slate-700 rounded-lg border border-slate-200 dark:border-slate-600 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-600 transition-all" data-category="banners">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <div class="w-3 h-3 rounded-full bg-red-500"></div>
+                                <div>
+                                    <div class="text-sm font-medium text-slate-800 dark:text-slate-200">Banners</div>
+                                    <div class="text-xs text-slate-500 dark:text-slate-400">Stadium banners & ads</div>
+                                </div>
+                            </div>
+                            <span class="category-status material-icons-outlined text-sm text-slate-400">radio_button_unchecked</span>
+                        </div>
+                    </div>
+                    
+                    <div class="category-card p-3 bg-white dark:bg-slate-700 rounded-lg border border-slate-200 dark:border-slate-600 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-600 transition-all" data-category="bench">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <div class="w-3 h-3 rounded-full bg-blue-500"></div>
+                                <div>
+                                    <div class="text-sm font-medium text-slate-800 dark:text-slate-200">Bench</div>
+                                    <div class="text-xs text-slate-500 dark:text-slate-400">Players & coaching staff</div>
+                                </div>
+                            </div>
+                            <span class="category-status material-icons-outlined text-sm text-slate-400">radio_button_unchecked</span>
+                        </div>
+                    </div>
+                    
+                    <div class="category-card p-3 bg-white dark:bg-slate-700 rounded-lg border border-slate-200 dark:border-slate-600 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-600 transition-all" data-category="ball">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                                <div>
+                                    <div class="text-sm font-medium text-slate-800 dark:text-slate-200">Ball</div>
+                                    <div class="text-xs text-slate-500 dark:text-slate-400">Soccer balls & equipment</div>
+                                </div>
+                            </div>
+                            <span class="category-status material-icons-outlined text-sm text-slate-400">radio_button_unchecked</span>
+                        </div>
+                    </div>
+                    
+                    <div class="category-card p-3 bg-white dark:bg-slate-700 rounded-lg border border-slate-200 dark:border-slate-600 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-600 transition-all" data-category="stadium">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+                                <div>
+                                    <div class="text-sm font-medium text-slate-800 dark:text-slate-200">Stadium</div>
+                                    <div class="text-xs text-slate-500 dark:text-slate-400">Venue & infrastructure</div>
+                                </div>
+                            </div>
+                            <span class="category-status material-icons-outlined text-sm text-slate-400">radio_button_unchecked</span>
+                        </div>
+                    </div>
+                    
+                    <div class="category-card p-3 bg-white dark:bg-slate-700 rounded-lg border border-slate-200 dark:border-slate-600 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-600 transition-all" data-category="shirts">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <div class="w-3 h-3 rounded-full bg-purple-500"></div>
+                                <div>
+                                    <div class="text-sm font-medium text-slate-800 dark:text-slate-200">Shirts</div>
+                                    <div class="text-xs text-slate-500 dark:text-slate-400">Jerseys & uniforms</div>
+                                </div>
+                            </div>
+                            <span class="category-status material-icons-outlined text-sm text-slate-400">radio_button_unchecked</span>
+                        </div>
+                    </div>
+                    
+                    <div class="category-card p-3 bg-white dark:bg-slate-700 rounded-lg border border-slate-200 dark:border-slate-600 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-600 transition-all" data-category="helmets">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <div class="w-3 h-3 rounded-full bg-orange-500"></div>
+                                <div>
+                                    <div class="text-sm font-medium text-slate-800 dark:text-slate-200">Helmets</div>
+                                    <div class="text-xs text-slate-500 dark:text-slate-400">Protective gear</div>
+                                </div>
+                            </div>
+                            <span class="category-status material-icons-outlined text-sm text-slate-400">radio_button_unchecked</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <h2 class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-3">Quick Select</h2>
+            <div class="space-y-2 flex-1">
+                <div class="p-2 rounded border border-red-500/20 bg-red-500/5 hover:bg-red-500/10 cursor-pointer transition-all" data-mode="banners">
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm font-medium text-red-600 dark:text-red-400">Banners</span>
+                        <span class="text-[10px] bg-red-500/20 text-red-600 px-1 py-0.5 rounded">Default</span>
+                    </div>
+                </div>
+                <div class="p-2 rounded border border-blue-500/20 bg-blue-500/5 hover:bg-blue-500/10 cursor-pointer transition-all" data-mode="bench">
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm font-medium text-blue-600 dark:text-blue-400">Bench</span>
+                        <span class="text-[10px] bg-blue-500/20 text-blue-600 px-1 py-0.5 rounded">Key 1</span>
+                    </div>
+                </div>
+                <div class="p-2 rounded border border-green-500/20 bg-green-500/5 hover:bg-green-500/10 cursor-pointer transition-all" data-mode="ball">
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm font-medium text-green-600 dark:text-green-400">Ball</span>
+                        <span class="text-[10px] bg-green-500/20 text-green-600 px-1 py-0.5 rounded">Key 2</span>
+                    </div>
+                </div>
+                <div class="p-2 rounded border border-yellow-500/20 bg-yellow-500/5 hover:bg-yellow-500/10 cursor-pointer transition-all" data-mode="stadium">
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm font-medium text-yellow-600 dark:text-yellow-400">Stadium</span>
+                        <span class="text-[10px] bg-yellow-500/20 text-yellow-600 px-1 py-0.5 rounded">Key 3</span>
+                    </div>
+                </div>
+                <div class="p-2 rounded border border-purple-500/20 bg-purple-500/5 hover:bg-purple-500/10 cursor-pointer transition-all" data-mode="shirts">
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm font-medium text-purple-600 dark:text-purple-400">Shirts</span>
+                        <span class="text-[10px] bg-purple-500/20 text-purple-600 px-1 py-0.5 rounded">Key 4</span>
+                    </div>
+                </div>
+                <div class="p-2 rounded border border-orange-500/20 bg-orange-500/5 hover:bg-orange-500/10 cursor-pointer transition-all" data-mode="helmets">
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm font-medium text-orange-600 dark:text-orange-400">Helmets</span>
+                        <span class="text-[10px] bg-orange-500/20 text-orange-600 px-1 py-0.5 rounded">Key 5</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Active Selections Display -->
+            <div class="mt-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+                <div class="bg-slate-100 dark:bg-slate-800 p-2 rounded mb-2">
+                    <div class="text-xs font-medium text-slate-600 dark:text-slate-400">Active Selections</div>
+                    <div id="activeSelections" class="text-sm font-semibold text-slate-800 dark:text-slate-200">None</div>
+                </div>
+                <button id="undoChanges" class="w-full p-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-600 transition-all flex items-center gap-3 mb-2">
+                    <span class="material-icons-outlined text-sm text-slate-600 dark:text-slate-400">undo</span>
+                    <span class="text-sm font-medium text-slate-700 dark:text-slate-300">Undo Changes</span>
+                </button>
+                <button id="applyCorrections" class="w-full p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-all flex items-center justify-between mb-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <div class="flex items-center gap-3">
+                        <span class="material-icons-outlined text-sm text-blue-600 dark:text-blue-400">check_circle</span>
+                        <span class="text-sm font-medium text-blue-700 dark:text-blue-300">Apply Changes</span>
+                    </div>
+                    <span id="selectionCount" class="bg-blue-200 dark:bg-blue-800 text-blue-800 dark:text-blue-200 px-2 py-1 rounded text-xs font-medium">0</span>
+                </button>
+                <button id="finishProject" class="w-full p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/30 transition-all flex items-center gap-3">
+                    <span class="material-icons-outlined text-sm text-green-600 dark:text-green-400">task_alt</span>
+                    <span class="text-sm font-medium text-green-700 dark:text-green-300">Finish Project</span>
+                </button>
+            </div>
+        </aside>
+
+        <main id="mainContent" class="flex-1 overflow-y-auto bg-white dark:bg-background-dark p-6 custom-scrollbar transition-all duration-300">
+            <!-- Filter & Correction Bar -->
+            <div class="bg-slate-50 dark:bg-card-dark border border-slate-200 dark:border-slate-700 rounded-lg p-4 mb-6">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="text-sm font-medium dark:text-white">Filter & Correction Settings</h3>
+                    <div class="flex items-center gap-3">
+                        <!-- Active Mode Indicator -->
+                        <div class="flex items-center gap-2 px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+                            <div id="modeColorDot" class="w-2 h-2 rounded-full bg-red-500"></div>
+                            <span class="text-xs text-slate-600 dark:text-slate-400">Mode:</span>
+                            <span id="modeText" class="text-xs font-medium text-slate-800 dark:text-slate-200">Banners</span>
+                        </div>
+                        <div class="flex gap-2">
+                            <select id="gridSize" class="text-xs px-2 py-1 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 dark:text-white">
+                                <option value="5" selected>5 cols</option>
+                                <option value="4">4 cols</option>
+                                <option value="3">3 cols</option>
+                            </select>
+                            <button id="bwMode" class="px-2 py-1 text-xs border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-100 dark:hover:bg-slate-600">B&W</button>
+                            <button id="portraitMode" class="px-2 py-1 text-xs border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-100 dark:hover:bg-slate-600">Portrait</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex items-center gap-4">
+                    <div class="flex items-center gap-2">
+                        <label class="text-xs text-slate-600 dark:text-slate-400">Filter:</label>
+                        <select id="filterType" class="text-xs px-2 py-1 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 dark:text-white">
+                            <option value="brand">Brand Detection</option>
+                            <option value="object">Object Detection</option>
+                            <option value="scene">Scene Analysis</option>
+                        </select>
+                        <select id="filterSubtype" class="text-xs px-2 py-1 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 dark:text-white">
+                            <option value="logo">Logo</option>
+                            <option value="text">Text</option>
+                            <option value="color">Color</option>
+                        </select>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <label class="text-xs text-slate-600 dark:text-slate-400">Target:</label>
+                        <select id="targetCollection" class="text-xs px-2 py-1 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 dark:text-white">
+                            <option value="banners">Banners</option>
+                            <option value="bench">Bench</option>
+                            <option value="ball">Ball</option>
+                            <option value="stadium">Stadium</option>
+                            <option value="shirts">Shirts</option>
+                            <option value="helmets">Helmets</option>
+                        </select>
+                        <button id="applyFilter" class="px-3 py-1 text-xs bg-primary text-white rounded hover:bg-blue-600">Apply</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h1 class="text-xl font-semibold dark:text-white">Brand Detection - Logo</h1>
+                    <p class="text-sm text-slate-500">Collection: Stadium • 24 items</p>
+                </div>
+                <div class="flex gap-2">
+                    <button id="clearSelections" class="px-4 py-2 text-sm font-medium border border-slate-200 dark:border-slate-800 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 dark:text-slate-300">
+                        Clear All
+                    </button>
+                </div>
+            </div>
+
+            <div id="imageGrid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                <div class="relative group aspect-square rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-300 dark:bg-slate-600 image-item" data-image-id="1">
+                    <img src="https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=300&h=300&fit=crop" alt="Soccer Stadium" class="w-full h-full object-cover" loading="lazy">
+                    <div class="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-xs px-2 py-1 font-mono">SIQ: 3110</div>
+                    <div class="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all cursor-pointer"></div>
+                </div>
+                <div class="relative group aspect-square rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-300 dark:bg-slate-600 image-item" data-image-id="2">
+                    <img src="https://images.unsplash.com/photo-1551698618-1dfe5d97d256?w=300&h=300&fit=crop" alt="Soccer Ball" class="w-full h-full object-cover" loading="lazy">
+                    <div class="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-xs px-2 py-1 font-mono">SIQ: 3111</div>
+                    <div class="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all cursor-pointer"></div>
+                </div>
+                <div class="relative group aspect-square rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-300 dark:bg-slate-600 image-item" data-image-id="3">
+                    <img src="https://images.unsplash.com/photo-1579952363873-27d3bfad9c0d?w=300&h=300&fit=crop" alt="Soccer Jersey" class="w-full h-full object-cover" loading="lazy">
+                    <div class="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-xs px-2 py-1 font-mono">SIQ: 3112</div>
+                    <div class="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all cursor-pointer"></div>
+                </div>
+                <div class="relative group aspect-square rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-300 dark:bg-slate-600 image-item" data-image-id="4">
+                    <img src="https://images.unsplash.com/photo-1606107557195-0e29a4b5b4aa?w=300&h=300&fit=crop" alt="Soccer Players" class="w-full h-full object-cover" loading="lazy">
+                    <div class="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-xs px-2 py-1 font-mono">SIQ: 3113</div>
+                    <div class="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all cursor-pointer"></div>
+                </div>
+                <div class="relative group aspect-square rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-300 dark:bg-slate-600 image-item" data-image-id="5">
+                    <img src="https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=300&h=300&fit=crop" alt="Soccer Stadium" class="w-full h-full object-cover" loading="lazy">
+                    <div class="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-xs px-2 py-1 font-mono">SIQ: 3114</div>
+                    <div class="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all cursor-pointer"></div>
+                </div>
+                <div class="relative group aspect-square rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-300 dark:bg-slate-600 image-item" data-image-id="6">
+                    <img src="https://images.unsplash.com/photo-1522778119026-d647f0596c20?w=300&h=300&fit=crop" alt="Soccer Team" class="w-full h-full object-cover" loading="lazy">
+                    <div class="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all cursor-pointer"></div>
+                </div>
+                <div class="relative group aspect-square rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-300 dark:bg-slate-600 image-item" data-image-id="7">
+                    <img src="https://images.unsplash.com/photo-1431324155629-1a6deb1dec8d?w=300&h=300&fit=crop" alt="Soccer Goal" class="w-full h-full object-cover" loading="lazy">
+                    <div class="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all cursor-pointer"></div>
+                </div>
+                <div class="relative group aspect-square rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-300 dark:bg-slate-600 image-item" data-image-id="8">
+                    <img src="https://images.unsplash.com/photo-1489944440615-453fc2b6a9a9?w=300&h=300&fit=crop" alt="Soccer Cleats" class="w-full h-full object-cover" loading="lazy">
+                    <div class="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all cursor-pointer"></div>
+                </div>
+                <div class="relative group aspect-square rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-300 dark:bg-slate-600 image-item" data-image-id="9">
+                    <img src="https://images.unsplash.com/photo-1508098682722-e99c43a406b2?w=300&h=300&fit=crop" alt="Soccer Match" class="w-full h-full object-cover" loading="lazy">
+                    <div class="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all cursor-pointer"></div>
+                </div>
+                <div class="relative group aspect-square rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-300 dark:bg-slate-600 image-item" data-image-id="10">
+                    <img src="https://images.unsplash.com/photo-1577223625816-7546f13df25d?w=300&h=300&fit=crop" alt="Soccer Fans" class="w-full h-full object-cover" loading="lazy">
+                    <div class="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all cursor-pointer"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const selections = new Map();
+        const collections = {
+            'banners': { color: 'red', name: 'Banners', key: null },
+            'bench': { color: 'blue', name: 'Bench', key: '1' },
+            'ball': { color: 'green', name: 'Ball', key: '2' },
+            'stadium': { color: 'yellow', name: 'Stadium', key: '3' },
+            'shirts': { color: 'purple', name: 'Shirts', key: '4' },
+            'helmets': { color: 'orange', name: 'Helmets', key: '5' }
+        };
+
+        let currentMode = 'banners';
+        let isDirectMode = false;
+        let isBWMode = false;
+        let isPortraitMode = false;
+        let sidebarVisible = true;
+        let rangeStart = null;
+        let isRangeMode = false;
+        let previousSelections = new Map();
+        let completedCategories = new Set();
+
+        // Sidebar toggle
+        document.getElementById('sidebarToggle').addEventListener('click', () => {
+            const sidebar = document.getElementById('sidebar');
+            const toggle = document.getElementById('sidebarToggle');
+            const mainContent = document.getElementById('mainContent');
+            sidebarVisible = !sidebarVisible;
+            
+            if (sidebarVisible) {
+                sidebar.classList.remove('sidebar-hidden');
+                toggle.innerHTML = '<span class="material-icons-outlined text-sm">chevron_left</span>';
+                toggle.style.left = '256px';
+                mainContent.style.marginLeft = '0';
+            } else {
+                sidebar.classList.add('sidebar-hidden');
+                toggle.innerHTML = '<span class="material-icons-outlined text-sm">chevron_right</span>';
+                toggle.style.left = '16px';
+                mainContent.style.marginLeft = '-256px';
+            }
+        });
+
+        // Mode selection
+        document.querySelectorAll('[data-mode]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const mode = btn.getAttribute('data-mode');
+                setActiveMode(mode);
+            });
+        });
+
+        function setActiveMode(mode) {
+            currentMode = mode;
+            const colorMap = {
+                'banners': '#ef4444',
+                'bench': '#3b82f6',
+                'ball': '#22c55e',
+                'stadium': '#eab308',
+                'shirts': '#a855f7',
+                'helmets': '#f97316'
+            };
+            
+            document.getElementById('modeColorDot').style.backgroundColor = colorMap[mode];
+            document.getElementById('modeText').textContent = collections[mode].name;
+            
+            // Update sidebar selection - remove previous active state
+            document.querySelectorAll('[data-mode]').forEach(btn => {
+                btn.classList.remove('ring-2', 'ring-offset-2');
+                btn.classList.remove('ring-red-500', 'ring-blue-500', 'ring-green-500', 'ring-yellow-500', 'ring-purple-500', 'ring-orange-500');
+            });
+            // Add active state to current mode
+            const activeBtn = document.querySelector(`[data-mode="${mode}"]`);
+            if (activeBtn) {
+                activeBtn.classList.add('ring-2', 'ring-offset-2', `ring-${collections[mode].color}-500`);
+            }
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.key === '1') setActiveMode('bench');
+            else if (e.key === '2') setActiveMode('ball');
+            else if (e.key === '3') setActiveMode('stadium');
+            else if (e.key === '4') setActiveMode('shirts');
+            else if (e.key === '5') setActiveMode('helmets');
+            else if (e.key === '0') setActiveMode('banners');
+            else if (e.key === 'c' || e.key === 'C') {
+                if (selections.size > 0) {
+                    document.getElementById('applyCorrections').click();
+                }
+            }
+        });
+
+        // Add filler images
+        const gridContainer = document.querySelector('#imageGrid');
+        const sportsImages = [
+            { url: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=300&h=300&fit=crop', alt: 'Stadium View' },
+            { url: 'https://images.unsplash.com/photo-1551698618-1dfe5d97d256?w=300&h=300&fit=crop', alt: 'Soccer Ball' },
+            { url: 'https://images.unsplash.com/photo-1579952363873-27d3bfad9c0d?w=300&h=300&fit=crop', alt: 'Team Jersey' },
+            { url: 'https://images.unsplash.com/photo-1606107557195-0e29a4b5b4aa?w=300&h=300&fit=crop', alt: 'Players Bench' },
+            { url: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=300&h=300&fit=crop', alt: 'Stadium Lights' },
+            { url: 'https://images.unsplash.com/photo-1522778119026-d647f0596c20?w=300&h=300&fit=crop', alt: 'Team Photo' },
+            { url: 'https://images.unsplash.com/photo-1431324155629-1a6deb1dec8d?w=300&h=300&fit=crop', alt: 'Goal Post' },
+            { url: 'https://images.unsplash.com/photo-1489944440615-453fc2b6a9a9?w=300&h=300&fit=crop', alt: 'Soccer Boots' },
+            { url: 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?w=300&h=300&fit=crop', alt: 'Match Action' },
+            { url: 'https://images.unsplash.com/photo-1577223625816-7546f13df25d?w=300&h=300&fit=crop', alt: 'Stadium Crowd' }
+        ];
+
+        for (let i = 0; i < 10; i++) {
+            const div = document.createElement('div');
+            div.className = "relative group aspect-square rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-300 dark:bg-slate-600 image-item";
+            div.setAttribute('data-image-id', 11 + i);
+            div.innerHTML = `
+                <img src="${sportsImages[i].url}" alt="${sportsImages[i].alt}" class="w-full h-full object-cover" loading="lazy">
+                <div class="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-xs px-2 py-1 font-mono">SIQ: ${3115 + i}</div>
+                <div class="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all cursor-pointer"></div>
+            `;
+            gridContainer.appendChild(div);
+        }
+
+        // View controls
+        document.getElementById('gridSize').addEventListener('change', (e) => {
+            const cols = e.target.value;
+            gridContainer.className = `grid grid-cols-2 md:grid-cols-3 lg:grid-cols-${cols} xl:grid-cols-${cols} gap-4`;
+        });
+
+        document.getElementById('bwMode').addEventListener('click', (e) => {
+            isBWMode = !isBWMode;
+            e.target.classList.toggle('bg-slate-200');
+            document.querySelectorAll('.image-item img').forEach(img => {
+                img.style.filter = isBWMode ? 'grayscale(100%)' : 'none';
+            });
+        });
+
+        document.getElementById('portraitMode').addEventListener('click', (e) => {
+            isPortraitMode = !isPortraitMode;
+            e.target.classList.toggle('bg-slate-200');
+            gridContainer.style.gridAutoRows = isPortraitMode ? '300px' : 'auto';
+        });
+
+        // Filter controls
+        document.getElementById('applyFilter').addEventListener('click', () => {
+            const filterType = document.getElementById('filterType').value;
+            const filterSubtype = document.getElementById('filterSubtype').value;
+            const target = document.getElementById('targetCollection').value;
+            document.querySelector('main h1').textContent = `${filterType.charAt(0).toUpperCase() + filterType.slice(1)} Detection - ${filterSubtype.charAt(0).toUpperCase() + filterSubtype.slice(1)}`;
+            console.log('Filter applied:', { filterType, filterSubtype, target });
+        });
+
+        // Image click handlers (left and right click)
+        document.addEventListener('click', (e) => {
+            const imageItem = e.target.closest('.image-item');
+            if (!imageItem) return;
+            
+            e.preventDefault();
+            const imageId = imageItem.getAttribute('data-image-id');
+            toggleSelection(imageId, currentMode, imageItem);
+        });
+        
+        document.addEventListener('contextmenu', (e) => {
+            const imageItem = e.target.closest('.image-item');
+            if (imageItem) {
+                e.preventDefault();
+                const imageId = parseInt(imageItem.getAttribute('data-image-id'));
+                handleRangeSelection(imageId, imageItem);
+            }
+        });
+
+        function handleRangeSelection(imageId, element) {
+            if (!rangeStart) {
+                rangeStart = { id: imageId, element };
+                element.classList.add('range-start');
+                isRangeMode = true;
+            } else {
+                element.classList.add('range-end');
+                const startId = rangeStart.id;
+                const endId = imageId;
+                
+                const allImages = Array.from(document.querySelectorAll('.image-item'));
+                const startIndex = allImages.findIndex(img => parseInt(img.getAttribute('data-image-id')) === Math.min(startId, endId));
+                const endIndex = allImages.findIndex(img => parseInt(img.getAttribute('data-image-id')) === Math.max(startId, endId));
+                
+                for (let i = startIndex; i <= endIndex; i++) {
+                    const img = allImages[i];
+                    const id = img.getAttribute('data-image-id');
+                    if (!selections.has(id)) {
+                        toggleSelection(id, currentMode, img);
+                    }
+                    if (i > startIndex && i < endIndex) {
+                        img.classList.add('range-between');
+                    }
+                }
+                
+                setTimeout(() => {
+                    document.querySelectorAll('.range-start, .range-end, .range-between').forEach(el => {
+                        el.classList.remove('range-start', 'range-end', 'range-between');
+                    });
+                }, 2000);
+                
+                rangeStart = null;
+                isRangeMode = false;
+            }
+        }
+
+        function toggleSelection(imageId, collection, element) {
+            const existingOverlay = element.querySelector('.selection-overlay');
+
+            if (selections.has(imageId)) {
+                selections.delete(imageId);
+                if (existingOverlay) existingOverlay.remove();
+            } else {
+                selections.set(imageId, { collection, color: collections[collection].color });
+
+                if (existingOverlay) existingOverlay.remove();
+
+                const overlay = document.createElement('div');
+                overlay.className = `absolute inset-0 image-overlay-${collections[collection].color} flex flex-col items-center justify-center opacity-100 selection-overlay`;
+                overlay.innerHTML = `<span class="text-white text-xs font-bold bg-${collections[collection].color}-600 px-2 py-1 rounded uppercase">${collections[collection].name}</span>`;
+                element.appendChild(overlay);
+            }
+
+            updateUI();
+        }
+
+        function updateUI() {
+            const count = selections.size;
+            document.getElementById('selectionCount').textContent = count;
+
+            const applyBtn = document.getElementById('applyCorrections');
+            applyBtn.disabled = count === 0;
+
+            const activeDisplay = document.getElementById('activeSelections');
+            if (count === 0) {
+                activeDisplay.textContent = 'None';
+            } else {
+                const summary = {};
+                selections.forEach(({collection}) => {
+                    summary[collection] = (summary[collection] || 0) + 1;
+                });
+
+                const summaryText = Object.entries(summary)
+                    .map(([col, cnt]) => `${collections[col].name}: ${cnt}`)
+                    .join(', ');
+                activeDisplay.textContent = summaryText;
+            }
+        }
+
+        // Button handlers
+        document.getElementById('undoChanges').addEventListener('click', () => {
+            if (previousSelections.size > 0) {
+                // Clear current selections
+                document.querySelectorAll('.selection-overlay').forEach(overlay => overlay.remove());
+                selections.clear();
+                
+                // Restore previous selections
+                previousSelections.forEach((data, imageId) => {
+                    const element = document.querySelector(`[data-image-id="${imageId}"]`);
+                    if (element) {
+                        selections.set(imageId, data);
+                        const overlay = document.createElement('div');
+                        overlay.className = `absolute inset-0 image-overlay-${collections[data.collection].color} flex flex-col items-center justify-center opacity-100 selection-overlay`;
+                        overlay.innerHTML = `<span class="text-white text-xs font-bold bg-${collections[data.collection].color}-600 px-2 py-1 rounded uppercase">${collections[data.collection].name}</span>`;
+                        element.appendChild(overlay);
+                    }
+                });
+                
+                previousSelections.clear();
+                updateUI();
+                console.log('Changes undone');
+            }
+        });
+        
+        document.getElementById('applyCorrections').addEventListener('click', () => {
+            if (selections.size === 0) return;
+            
+            // Save current selections for undo
+            previousSelections = new Map(selections);
+
+            const corrections = Array.from(selections.entries()).map(([id, {collection}]) => ({
+                imageId: id,
+                targetCollection: isDirectMode ? collection : `${collection}_corrected`
+            }));
+
+            console.log('Applying corrections:', corrections);
+            alert(`Applied ${corrections.length} corrections to ${isDirectMode ? 'direct' : 'corrected'} collections!`);
+
+            clearAllSelections();
+        });
+
+        document.getElementById('clearSelections').addEventListener('click', clearAllSelections);
+
+        function clearAllSelections() {
+            document.querySelectorAll('.selection-overlay').forEach(overlay => overlay.remove());
+            selections.clear();
+            updateUI();
+        }
+
+        // Initialize
+        setActiveMode('banners');
+        updateUI();
+        
+        // Categories dropdown
+        document.getElementById('categoriesToggle').addEventListener('click', () => {
+            const dropdown = document.getElementById('categoriesDropdown');
+            const chevron = document.getElementById('categoriesChevron');
+            
+            dropdown.classList.toggle('hidden');
+            chevron.style.transform = dropdown.classList.contains('hidden') ? 'rotate(0deg)' : 'rotate(180deg)';
+        });
+        
+        // Category cards
+        document.querySelectorAll('.category-card').forEach(card => {
+            card.addEventListener('click', () => {
+                const category = card.getAttribute('data-category');
+                const status = card.querySelector('.category-status');
+                
+                if (completedCategories.has(category)) {
+                    completedCategories.delete(category);
+                    status.textContent = 'radio_button_unchecked';
+                    status.className = 'category-status material-icons-outlined text-sm text-slate-400';
+                    card.classList.remove('bg-green-50', 'dark:bg-green-900/20', 'border-green-200', 'dark:border-green-800');
+                    card.classList.add('bg-white', 'dark:bg-slate-700', 'border-slate-200', 'dark:border-slate-600');
+                } else {
+                    completedCategories.add(category);
+                    status.textContent = 'check_circle';
+                    status.className = 'category-status material-icons-outlined text-sm text-green-500';
+                    card.classList.remove('bg-white', 'dark:bg-slate-700', 'border-slate-200', 'dark:border-slate-600');
+                    card.classList.add('bg-green-50', 'dark:bg-green-900/20', 'border-green-200', 'dark:border-green-800');
+                }
+            });
+        });
+        
+        document.getElementById('finishProject').addEventListener('click', () => {
+            if (confirm('Are you sure you want to finish and deliver this project? This action cannot be undone.')) {
+                alert('Project completed and delivered successfully!');
+                console.log('Project finished and delivered');
+            }
+        });
+    </script>
+</body>
+</html>
